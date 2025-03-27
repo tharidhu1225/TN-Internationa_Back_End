@@ -182,3 +182,13 @@ export async function googleLogin(req,res){
 
 }
 
+export async function getUser(req,res) {
+  try {
+      const users = await User.find(); // Fetch all users from DB
+      res.status(200).json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
+
+
