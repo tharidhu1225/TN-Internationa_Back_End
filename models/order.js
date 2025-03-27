@@ -1,63 +1,29 @@
 import mongoose from "mongoose";
 
-const orderSchema = mongoose.Schema({
-  orderId : {
-    type : String,
-    required : true,
-    unique : true
-  },
-  email : {
-    type : String,
-    required : true
-  },
-  orderedItems : [
+const orderSchema = new mongoose.Schema({
+  myName: {type: String, required: true},
+  customerName: { type: String, required: true },
+  email: { type: String, required: true },
+  address: { type: String, required: true },
+  phone: { type: String, required: true },
+  
+  orderItems: [
     {
-      name : {
-        type : String,
-        required : true
-      },
-      price : {
-        type : Number,
-        required : true
-      },
-      quantity : {
-        type : Number,
-        required : true
-      },
-      image : {
-        type : String,
-        required : true
-      }
+      productName: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      price: { type: Number, required: true }
     }
   ],
-  date : {
-    type : Date,
-    default : Date.now
-  },
-  paymentId:{
-    type : String
-  },
-  status : {
-    type : String,
-    default : "preparing"
-  },
-  notes : {
-    type : String
-  },
-  name : {
-    type : String,
-    required : true
-  },
-  address : {
-    type : String,
-    required : true
-  },
-  phone : {
-    type : String,
-    required : true
-  }
-})
+  
 
-const Order = mongoose.model("orders",orderSchema);
+  paymentMethod: { type: String, required: true, default: "Cash on Delivery" }, // Can be "Credit Card", "PayPal", etc.
+  paymentStatus: { type: String, required: true, default: "Pending" }, // "Pending", "Paid", "Failed"
+  
+  orderStatus: { type: String, required: true, default: "Pending" }, // "Pending", "Shipped", "Delivered"
+  trackingNumber: { type: String, default: "" }, // Tracking number (optional)
+  
+  date: { type: Date, default: Date.now }
+});
 
+const Order = mongoose.model("orders", orderSchema);
 export default Order;
