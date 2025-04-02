@@ -5,17 +5,16 @@ import Product from "../models/product.js";
 export async function createOrder(req,res){
 
   try {
-    const { myName,myNumber,customerName, email, address, phone, orderItems, paymentMethod } = req.body;
+    const { myName,customerName, email, address, phone, orderItems, paymentMethod } = req.body;
 
     // Validate required fields
-    if (!myName || !myNumber || !customerName || !email || !address || !phone || !orderItems.length) {
+    if (!myName || !customerName || !email || !address || !phone || !orderItems.length) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
     // Create new order with default values for order status and payment status
     const newOrder = new Order({
       myName,
-      myNumber,
       customerName,
       email,
       address,
