@@ -1,202 +1,97 @@
 import Order from "../models/order.js";
 import Product from "../models/product.js";
-import { isAdmin, isCustomer } from "./userController.js";
 
-export async function createOrder(req, res) {
-  if (!isCustomer) {
-    res.json({
-      message: "Please login as customer to create orders",
-    });
-  }
+
+export async function createOrder(req,res){
 
   try {
-    const latestOrder = await Order.find().sort({ orderId: -1 }).limit(1);
-    console.log(latestOrder);
+    const { myName,customerName, email, address, phone, orderItems, paymentMethod } = req.body;
 
-    let orderId;
-
-    if (latestOrder.length == 0) {
-      orderId = "CBC0001";
-    } else {
-      const currentOrderId = latestOrder[0].orderId;
-
-      const numberString = currentOrderId.replace("CBC", "");
-
-      const number = parseInt(numberString);
-
-      const newNumber = (number + 1).toString().padStart(4, "0");
-
-      orderId = "CBC" + newNumber;
+    // Validate required fields
+    if (!myName || !customerName || !email || !address || !phone || !orderItems.length) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const newOrderData = req.body;
+    // Create new order with default values for order status and payment status
+    const newOrder = new Order({
+      myName,
+      customerName,
+      email,
+      address,
+      phone,
+      orderItems,
+      paymentMethod: paymentMethod || "Cash on Delivery", // Default payment method
+      paymentStatus: "Pending", // Default payment status
+      orderStatus: "Pending", // Default order status
+      trackingNumber: "", // Empty tracking number initially
+    });
 
-    const newProductArray = [];
+    await newOrder.save();
 
-    for (let i = 0; i < newOrderData.orderedItems.length; i++) {
-      const product = await Product.findOne({
-        productId: newOrderData.orderedItems[i].productId,
-      });
-
-      if (product == null) {
-        res.json({
-          message:
-            "Product with id " +
-            newOrderData.orderedItems[i].productId +
-            " not found",
-        });
-        return;
-      }
-
-      newProductArray[i] = {
-        name: product.productName,
-        price: product.lastPrice,
-        quantity: newOrderData.orderedItems[i].qty,
-        image: product.images[0],
-      };
-    }
-    console.log(newProductArray);
-
-    newOrderData.orderedItems = newProductArray;
-
-    newOrderData.orderId = orderId;
-    newOrderData.email = req.user.email;
-
-    const order = new Order(newOrderData);
-
-    const savedOrder = await order.save();
-
-    res.json({
-      message: "Order created",
-      order : savedOrder
+    res.status(201).json({
+      message: "Order placed successfully!",
+      order: newOrder,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: "Server error", error });
   }
 }
 
 export async function getOrders(req, res) {
-  
-    
   try {
-    if (isCustomer(req)) {
-    const orders = await Order.find({ email: req.user.email });
-
-    res.json(orders);
-    return;
-    }else if(isAdmin(req)){
-      const orders = await Order.find({});
-
-      res.json(orders);
-      return;
-    }else{
-      res.json({
-        message: "Please login to view orders"
-      })
-    }
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
+    const orders = await Order.find();
+    res.status(200).json(orders);
+} catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ message: "Failed to retrieve orders" });
 }
+  }
 
-export async function getQuote(req, res) {
-  
-  try {
-    const newOrderData = req.body;
+export async function getQuote(req,res){
+    try{
+        const newOrderData = req.body
 
-    const newProductArray = [];
+        const newProductArray = []
 
-    let total = 0;
-    let labeledTotal = 0;
-    console.log(req.body)
+        let total = 0;
+        let labeledTotal = 0;
+        console.log(req.body)
+        for(let i=0; i<newOrderData.orderedItems.length;i++){
 
-    for (let i = 0; i < newOrderData.orderedItems.length; i++) {
-      const product = await Product.findOne({
-        productId: newOrderData.orderedItems[i].productId,
-      });
+            const product = await Product.findOne({
+                productId : newOrderData.orderedItems[i].productId
+            })
 
-      if (product == null) {
+            if(product == null){
+                res.json({
+                    message : "Product with id "+newOrderData.orderedItems[i].productId+" not found"
+                })
+                return
+            }
+            labeledTotal += product.price * newOrderData.orderedItems[i].qty;
+            total += product.lastPrice * newOrderData.orderedItems[i].qty;
+            newProductArray[i] = {
+                name: product.productName,
+                price : product.lastPrice,
+                labeledPrice : product.price,
+                quantity : newOrderData.orderedItems[i].qty,
+                image : product.images[0]
+            }
+            
+        }
+        console.log(newProductArray)
+
+        newOrderData.orderedItems = newProductArray
+        newOrderData.total = total;
         res.json({
-          message:
-            "Product with id " +
-            newOrderData.orderedItems[i].productId +
-            " not found",
-        });
-        return;
-      }
-      labeledTotal += product.price * newOrderData.orderedItems[i].qty;
-      total += product.lastPrice * newOrderData.orderedItems[i].qty;
-      newProductArray[i] = {
-        name: product.productName,
-        price: product.lastPrice,
-        labeledPrice: product.price,
-        quantity: newOrderData.orderedItems[i].qty,
-        image: product.images[0],
-      };
+            orderedItems : newProductArray,
+            total : total,
+            labeledTotal : labeledTotal
+        })
+    }catch(error){
+        console.log("Error:", error);
+        res.status(500).json({
+            message : error.message
+        })
     }
-    console.log(newProductArray);
-    newOrderData.orderedItems = newProductArray;
-    newOrderData.total = total;
-
-    res.json({
-      orderedItems: newProductArray,
-      total: total,
-      labeledTotal: labeledTotal,
-    });
-
-
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
 }
-
-export async function updateOrder(req, res) {
-  if (!isAdmin(req)) {
-    res.json({
-      message: "Please login as admin to update orders",
-    });
-  }
-  
-  try {
-    const orderId = req.params.orderId;
-
-    const order = await Order.findOne({
-      orderId: orderId,
-    });
-
-    if (order == null) {
-      res.status(404).json({
-        message: "Order not found",
-      })
-      return;
-    }
-
-    const notes = req.body.notes;
-    const status = req.body.status;
-
-    const updateOrder = await Order.findOneAndUpdate(
-      { orderId: orderId },
-      { notes: notes, status: status }
-    );
-
-    res.json({
-      message: "Order updated",
-      updateOrder: updateOrder
-    });
-
-  }catch(error){
-
-    
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-}
-
-
